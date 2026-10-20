@@ -1,0 +1,81 @@
+name: Runtime E2E Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed Aghbari URL for runtime verification'
+        required: true
+        type: string
+      exact_sha:
+        description: 'Exact Git commit SHA being certified'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aghbari-runtime-e2e-${{ github.workflow }}-${{ inputs.exact_sha }}
+  cancel-in-progress: false
+
+jobs:
+  runtime-e2e:
+    name: Authenticated browser critical path
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_EMAIL_B: ${{ secrets.E2E_EMAIL_B }}
+      E2E_PASSWORD_B: ${{ secrets.E2E_PASSWORD_B }}
+      E2E_EXACT_SHA: ${{ inputs.exact_sha }}
+    steps:
+      - name: Validate exact release inputs
+        shell: bash
+        run: |
+          echo "$E2E_EXACT_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          node -e "const u=new URL(process.env.E2E_BASE_URL); if(u.protocol !== 'https:') throw new Error('E2E_BASE_URL must use HTTPS'); if(u.username || u.password) throw new Error('E2E_BASE_URL must not contain credentials'); console.log('Runtime URL origin:', u.origin)"
+      - name: Checkout exact certification SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.exact_sha }}
+          fetch-depth: 1
+      - name: Verify exact certification HEAD
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$E2E_EXACT_SHA" || {
+            echo "EXACT HEAD MISMATCH: expected=$E2E_EXACT_SHA actual=$actual"
+            exit 1
+          }
+          echo "EXACT CERTIFICATION HEAD: $actual"
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies from lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Require runtime credentials
+        shell: bash
+        run: |
+          test -n "$E2E_BASE_URL"
+          test -n "$E2E_EMAIL"
+          test -n "$E2E_PASSWORD"
+          test -n "$E2E_EMAIL_B"
+          test -n "$E2E_PASSWORD_B"
+      - name: Execute authenticated E2E
+        run: npm run test:e2e -- --reporter=list
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aghbari-runtime-e2e-evidence-${{ inputs.exact_sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore

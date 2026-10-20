@@ -1,0 +1,215 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import "./aghbari.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+
+/* Aghbari reduced-motion policy: respect system accessibility preferences across all screens. */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within { scroll-behavior: auto !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* Operational task center */
+.task-center{display:grid;gap:16px;color:var(--foreground)}
+.task-center-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.task-center-hero h1{margin:8px 0 6px;font-size:clamp(23px,3vw,30px);font-weight:800;letter-spacing:-.02em}
+.task-center-hero p{margin:0;max-width:740px;color:var(--muted-foreground);line-height:1.8;font-size:14px}
+.task-center-eyebrow{display:inline-flex;align-items:center;gap:7px;color:var(--primary);font-size:12px;font-weight:800}
+.task-center-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.task-center-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.task-center-metrics article{display:grid;gap:10px;padding:16px;border:1px solid var(--border);background:var(--card);border-radius:13px}
+.task-center-metrics article span{display:flex;align-items:center;gap:7px;color:var(--muted-foreground);font-size:12px}
+.task-center-metrics article strong{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.task-create-form{display:grid;gap:13px;padding:18px}
+.task-create-form label,.task-filters label{display:grid;gap:6px;color:var(--foreground);font-size:13px;font-weight:650}
+.task-create-form input,.task-create-form textarea,.task-create-form select,.task-filters input,.task-filters select{width:100%;min-width:0;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);font:inherit}
+.task-create-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.task-form-actions{display:flex;gap:8px;flex-wrap:wrap}
+.task-filters{display:grid;grid-template-columns:minmax(220px,2fr) repeat(2,minmax(150px,1fr));gap:12px;padding:14px}
+.task-filters label span{display:flex;align-items:center;gap:6px;color:var(--muted-foreground)}
+.task-center-list{display:grid;gap:10px}
+.task-card{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:14px;align-items:stretch;padding:14px}
+.task-priority-line{border-radius:99px;background:var(--muted)}
+.task-priority-line.low{background:oklch(0.68 0.08 190)}.task-priority-line.medium{background:oklch(0.72 0.08 80)}.task-priority-line.high{background:oklch(0.67 0.15 60)}.task-priority-line.critical{background:oklch(0.58 0.2 25)}
+.task-card-main{min-width:0}.task-card-top{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.task-role-badge,.task-status-badge,.task-priority-badge,.task-late-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:750;background:var(--muted);color:var(--muted-foreground)}
+.task-status-badge.completed{background:oklch(0.94 0.04 155);color:oklch(0.34 0.1 155)}.task-status-badge.in_progress{background:oklch(0.94 0.04 250);color:oklch(0.38 0.1 250)}
+.task-status-badge.cancelled{text-decoration:line-through}.task-priority-badge.critical,.task-priority-badge.high,.task-late-badge{background:oklch(0.95 0.04 35);color:oklch(0.4 0.15 35)}
+.task-card h2{margin:9px 0 4px;font-size:16px;font-weight:800}.task-card p{margin:0;color:var(--muted-foreground);font-size:13px;line-height:1.7;white-space:pre-wrap}
+.task-card-metadata{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:12px;color:var(--muted-foreground);font-size:11px}
+.task-card-metadata span{display:inline-flex;align-items:center;gap:5px;overflow-wrap:anywhere}.task-card-metadata .task-resolution{flex-basis:100%;color:var(--foreground)}
+.task-card-actions{display:flex;align-items:flex-start;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.task-center-error{display:flex;gap:8px;align-items:center;padding:12px;border-radius:9px;border:1px solid oklch(0.75 0.13 30);color:oklch(0.4 0.15 30);background:oklch(0.98 0.02 30);font-size:13px}
+.task-center-empty{display:flex;min-height:120px;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:25px;color:var(--muted-foreground);text-align:center}.task-center-empty strong{color:var(--foreground)}
+.operational-task-print{display:none}
+@media(max-width:860px){.task-center-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.task-filters,.task-create-grid{grid-template-columns:1fr}.task-card{grid-template-columns:4px minmax(0,1fr)}.task-card-actions{grid-column:2}}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body *{visibility:hidden!important}
+  .operational-task-print,.operational-task-print *{visibility:visible!important}
+  .receivables-aging-report,.receivables-aging-report *{visibility:visible!important}
+  .operational-task-print{display:block!important;position:absolute!important;inset:0!important;width:100%!important;padding:0!important;direction:rtl!important;background:#fff!important;color:#111!important;font-family:Arial,sans-serif!important;font-size:10pt!important}
+  .receivables-aging-report{display:block!important;position:absolute!important;inset:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;direction:rtl!important;background:#fff!important;color:#111!important;font:10pt Arial,sans-serif!important}
+  .receivables-aging-report .receivables-aging-print-controls{display:none!important}
+  .receivables-aging-report h2,.receivables-aging-report h3{color:#111!important;font-size:14pt!important}
+  .receivables-aging-report p{color:#222!important}
+  .receivables-aging-report table{width:100%!important;border-collapse:collapse!important;table-layout:auto!important;font-size:8pt!important}
+  .receivables-aging-report th,.receivables-aging-report td{border:1px solid #888!important;padding:4px!important;vertical-align:top!important;text-align:right!important;overflow-wrap:anywhere!important;color:#111!important}
+  .receivables-aging-report th{background:#efefef!important}
+  .receivables-aging-report tr{break-inside:avoid!important;page-break-inside:avoid!important}
+  .operational-task-print header{margin-bottom:12px;border-bottom:2px solid #222;padding-bottom:8px}.operational-task-print h1{margin:0 0 8px;font-size:18pt}
+  .operational-task-print p{margin:3px 0}.operational-task-print table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .operational-task-print th,.operational-task-print td{border:1px solid #888;padding:6px;vertical-align:top;text-align:right;overflow-wrap:anywhere}
+  .operational-task-print th{background:#efefef!important;color:#111!important}.operational-task-print tr{break-inside:avoid;page-break-inside:avoid}
+  .operational-task-print footer{margin-top:12px;font-size:9pt;color:#333}
+}

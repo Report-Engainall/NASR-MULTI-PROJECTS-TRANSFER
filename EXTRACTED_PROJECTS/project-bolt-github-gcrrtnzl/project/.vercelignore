@@ -1,0 +1,15 @@
+# Keep Vercel deployment payload focused on runtime/build inputs.
+# Do not exclude source, public assets, Supabase migrations, or package manifests.
+.git
+.github
+.vscode
+.idea
+coverage
+test-results
+playwright-report
+screenshots
+*.log
+docs
+contracts
+scripts
+*.md

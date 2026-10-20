@@ -1,0 +1,99 @@
+name: Production Smoke / Exact Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed Aghbari URL to smoke-test'
+        required: true
+        type: string
+      exact_sha:
+        description: 'Exact Git SHA expected in the deployed build artifact'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aghbari-production-smoke-${{ inputs.exact_sha }}
+  cancel-in-progress: false
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_URL: ${{ inputs.base_url }}
+      EXPECTED_SHA: ${{ inputs.exact_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.exact_sha }}
+          fetch-depth: 1
+      - name: Validate exact release inputs
+        shell: bash
+        run: |
+          test -n "$BASE_URL"
+          test -n "$EXPECTED_SHA"
+          case "$BASE_URL" in
+            https://*) ;;
+            *) echo 'BASE_URL must use HTTPS'; exit 1 ;;
+          esac
+          echo "$EXPECTED_SHA" | grep -Eq '^[0-9a-f]{40}$'
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA" || exit 1
+          echo "EXACT SMOKE TEST HEAD: $actual"
+      - name: Verify deployed artifact identity
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 "$BASE_URL/build-meta.json" -o build-meta.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const meta = JSON.parse(fs.readFileSync('build-meta.json', 'utf8'));
+          if (meta.product !== 'aghbari-commerce') throw new Error(`Unexpected product: ${meta.product}`);
+          if (meta.git_sha !== process.env.EXPECTED_SHA) throw new Error(`DEPLOYED SHA MISMATCH: expected=${process.env.EXPECTED_SHA} actual=${meta.git_sha}`);
+          if (typeof meta.version !== 'string' || !meta.version.trim()) throw new Error('Missing deployed application version');
+          if (typeof meta.build_time !== 'string' || Number.isNaN(Date.parse(meta.build_time))) throw new Error('Invalid deployed build_time');
+          console.log(`EXACT DEPLOYED SHA: ${meta.git_sha}`);
+          console.log(`DEPLOYED VERSION: ${meta.version}`);
+          console.log(`DEPLOYED BUILD TIME: ${meta.build_time}`);
+          NODE
+      - name: Verify security headers and hardening
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 -D headers.txt -o /dev/null "$BASE_URL/"
+          grep -qi '^content-security-policy:' headers.txt
+          grep -qi '^x-content-type-options:.*nosniff' headers.txt
+          grep -qi '^x-frame-options:.*DENY' headers.txt
+          grep -qi '^strict-transport-security:' headers.txt
+          grep -qi '^referrer-policy:' headers.txt
+          grep -qi '^permissions-policy:' headers.txt
+      - name: Verify application shell
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 "$BASE_URL/" -o index.html
+          grep -qi '<html' index.html
+          grep -qi 'lang="ar"' index.html
+          grep -qi 'dir="rtl"' index.html
+          grep -qi 'بوابة الأغبري' index.html
+          grep -q 'type="module"' index.html
+      - name: Verify PWA manifest contract
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 "$BASE_URL/manifest.webmanifest" -o manifest.webmanifest
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
+          if (!p.name || !p.short_name) throw new Error('PWA name contract missing');
+          if (p.lang !== 'ar' || p.dir !== 'rtl') throw new Error('PWA locale/direction contract mismatch');
+          if (p.start_url !== '/' || p.scope !== '/') throw new Error('PWA scope/start_url contract mismatch');
+          if (p.display !== 'standalone') throw new Error('PWA display contract mismatch');
+          if (!Array.isArray(p.icons) || p.icons.length < 2) throw new Error('PWA icon contract incomplete');
+          for (const icon of p.icons) if (!icon.src || !icon.sizes || !icon.type) throw new Error('Invalid PWA icon entry');
+          console.log('PWA manifest: PASS');
+          NODE
+      - name: Verify service worker
+        run: |
+          curl --fail --silent --show-error --location --max-time 15 "$BASE_URL/sw.js" -o sw.js
+          test -s sw.js
+          grep -q 'self.addEventListener' sw.js
+          grep -q "fetch" sw.js
+          echo 'Service worker: PASS'

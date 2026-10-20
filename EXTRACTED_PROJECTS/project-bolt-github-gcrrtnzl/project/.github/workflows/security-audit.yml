@@ -1,0 +1,61 @@
+name: security-audit
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      exact_sha:
+        description: 'Exact Git commit SHA to audit'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aghbari-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_SHA: ${{ inputs.exact_sha || github.sha }}
+    steps:
+      - name: Validate exact SHA input
+        shell: bash
+        run: echo "$TARGET_SHA" | grep -Eq '^[0-9a-f]{40}$'
+      - name: Checkout exact target SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.exact_sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify exact target HEAD
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TARGET_SHA" || {
+            echo "EXACT HEAD MISMATCH: expected=$TARGET_SHA actual=$actual"
+            exit 1
+          }
+          echo "EXACT SECURITY AUDIT HEAD: $actual"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install pinned dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Audit production dependency graph
+        run: npm audit --omit=dev --audit-level=high
+      - name: Reject server secrets from browser sources
+        shell: bash
+        run: |
+          if git grep -n -E 'SUPABASE_SERVICE_ROLE_KEY|VITE_SUPABASE_SERVICE_ROLE|sb_secret_' -- src public index.html; then
+            echo 'Server-only Supabase secrets must never appear in browser-delivered sources.'
+            exit 1
+          fi
+          echo 'Browser secret boundary: PASS'

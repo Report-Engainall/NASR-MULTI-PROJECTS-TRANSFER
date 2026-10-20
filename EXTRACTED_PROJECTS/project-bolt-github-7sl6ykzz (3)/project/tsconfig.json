@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", "useDefineForClassFields": true, "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext", "skipLibCheck": true, "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true, "resolveJsonModule": true, "isolatedModules": true,
+    "moduleDetection": "force", "noEmit": true, "jsx": "react-jsx", "strict": true,
+    "noUnusedLocals": false, "noUnusedParameters": false, "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "exclude": [
+    "src/test",
+    "src/routes",
+    "src/server.ts",
+    "src/start.ts",
+    "src/router.tsx",
+    "src/routeTree.gen.ts",
+    "src/integrations",
+    "src/components/ui",
+    "src/components/AdminPages.tsx",
+    "src/components/AghbariApp.tsx",
+    "src/components/CustomerWorkflows.tsx",
+    "src/components/OperationsCenter.tsx",
+    "src/components/UnifiedImportEngine.tsx",
+    "src/components/Storefront.tsx",
+    "src/components/CustomerCompanyMembers.tsx",
+    "src/components/CustomerOrders.tsx",
+    "src/components/Login.tsx",
+    "src/components/CustomerWorkflows.finance.test.tsx",
+    "src/lib/finance-document-pdf.test.ts",
+    "src/lib/finance-pdf-server.ts",
+    "src/lib/utils.ts",
+    "src/lib/customer-company-contacts.ts",
+    "src/lib/error-capture.ts",
+    "src/lib/error-page.ts",
+    "src/lib/lovable-error-reporting.ts",
+    "src/lib/auth.tsx",
+    "src/lib/useFetch.ts",
+    "src/lib/useSettings.ts",
+    "src/lib/format.ts",
+    "src/hooks/use-mobile.tsx"
+  ]
+}

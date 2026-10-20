@@ -1,0 +1,8 @@
+project_id = "ffxxjaolfntzbapmfbuv"
+
+[functions.outbox-worker]
+verify_jwt = false
+
+
+[functions.ai-gateway]
+verify_jwt = true

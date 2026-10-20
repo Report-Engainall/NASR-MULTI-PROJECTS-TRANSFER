@@ -1,0 +1,33 @@
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .7rem 1rem;
+  text-align: center;
+  background: #fff7ed;
+  color: #9a3412;
+  border-bottom: 1px solid #fed7aa;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+
+@media (max-width: 720px) {
+  .offline-banner {
+    position: static;
+    font-size: .82rem;
+  }
+
+  .topbar-actions {
+    gap: .35rem;
+  }
+}

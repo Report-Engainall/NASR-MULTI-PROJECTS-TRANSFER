@@ -1,0 +1,239 @@
+name: Aghbari Commerce checks
+
+on:
+  push:
+    branches:
+      - main
+      - fix/commerce-completion-20261009
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aghbari_test
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: aghbari_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d aghbari_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Bun for frozen-lockfile verification
+        uses: oven-sh/setup-bun@v2
+      - name: Verify Bun lockfile matches package.json
+        run: bun install --frozen-lockfile --dry-run
+      - name: Use Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Install dependencies from verified Bun lockfile
+        run: bun install --frozen-lockfile
+      - name: Unit tests
+        run: npm test
+      - name: Apply all migrations to isolated PostgreSQL 17 and verify core workflows
+        shell: bash
+        run: |
+          set +e
+          npm run test:db 2>&1 | tee /tmp/aghbari-db-migration.log
+          db_status=${PIPESTATUS[0]}
+          if [ "$db_status" -ne 0 ]; then
+            echo "::error title=Database migration diagnostic::The isolated migration/workflow command failed; structured error follows."
+            grep -E '^(MIGRATION_FAILED|MIGRATION_DIAGNOSTIC|DATABASE_ACCEPTANCE_FAILED) ' /tmp/aghbari-db-migration.log | tail -n 4 | while IFS= read -r line; do
+              echo "::error title=Database root cause::$line"
+            done
+            grep -E 'Error:|error:|AssertionError:|not ok|FAIL|ERROR' /tmp/aghbari-db-migration.log | tail -n 20 | while IFS= read -r line; do
+              echo "::error title=Database test failure::$line"
+            done
+          fi
+          exit "$db_status"
+      # The repository-wide Prettier rule currently reports thousands of pre-existing formatting errors.
+      # Keep ESLint correctness rules enabled here and do not let that legacy formatting backlog hide build results.
+      - name: Lint (excluding repository-wide Prettier formatting rule)
+        run: npm run lint -- --rule=prettier/prettier:off
+      - name: Build
+        env:
+          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: npm run build
+
+      # The dev server compiles routes on demand and can hide missing production SSR/handler output.
+      # Verify the actual built artifact separately before treating a green build as deployable.
+      - name: Production build preview smoke test on port 4173
+        env:
+          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+          SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: |
+          npx wrangler dev --config .output/server/wrangler.json --local --ip 127.0.0.1 --port 4173 > /tmp/aghbari-preview.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          if [ ! -f .output/server/index.mjs ] || [ ! -f .output/server/wrangler.json ] || [ ! -f .output/public/manifest.webmanifest ]; then
+            echo "Expected Nitro/Cloudflare production artifacts are missing after build."
+            find .output -maxdepth 3 -type f | sort | head -n 200
+            exit 1
+          fi
+          ready=0
+          for attempt in $(seq 1 45); do
+            status=$(curl --silent --connect-timeout 2 --max-time 5 --output /tmp/aghbari-preview-home.html --write-out "%{http_code}" http://127.0.0.1:4173/ || true)
+            if [ "$status" = "200" ] && grep -q "الأغبري" /tmp/aghbari-preview-home.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/aghbari-preview.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Production preview did not serve the built Arabic storefront at HTTP 200."
+            cat /tmp/aghbari-preview.log
+            exit 1
+          fi
+          for route in \
+            /login /cart /checkout /orders /invoices /statement /quotes /assistant \
+            /admin /admin/orders /admin/products /admin/finance /manifest.webmanifest /sw.js; do
+            status=$(curl --silent --connect-timeout 2 --max-time 5 --output /tmp/aghbari-preview-route.html --write-out "%{http_code}" "http://127.0.0.1:4173$route" || true)
+            if [ "$status" != "200" ]; then
+              echo "Production preview expected HTTP 200 from $route, received $status"
+              cat /tmp/aghbari-preview.log
+              exit 1
+            fi
+          done
+          # A generic not-found shell can still return HTTP 200. Require each critical
+          # customer route to render its own title in the built production artifact.
+          for route_spec in \
+            "/invoices|الفواتير" \
+            "/statement|كشف الحساب"; do
+            route="${route_spec%%|*}"
+            expected_title="${route_spec#*|}"
+            curl --fail --silent --show-error "http://127.0.0.1:4173$route" -o /tmp/aghbari-preview-route-contract.html
+            if ! grep -Fq "$expected_title" /tmp/aghbari-preview-route-contract.html; then
+              echo "Production preview route contract failed: $route did not render its own title '$expected_title'."
+              cat /tmp/aghbari-preview-route-contract.html
+              cat /tmp/aghbari-preview.log
+              exit 1
+            fi
+          done
+          # Verify the served static assets are the PWA files, not fallback HTML.
+          curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:4173/sw.js -o /tmp/aghbari-preview-sw.js
+          grep -Fq "CACHE_NAME" /tmp/aghbari-preview-sw.js || {
+            echo "Production preview /sw.js did not contain the service worker implementation."
+            cat /tmp/aghbari-preview-sw.js
+            exit 1
+          }
+          for route in \
+            /api/statement-pdf \
+            /api/invoice-pdf/11111111-1111-4111-8111-111111111111; do
+            status=$(curl --silent --connect-timeout 2 --max-time 5 --output /tmp/aghbari-preview-pdf-auth.json --write-out "%{http_code}" "http://127.0.0.1:4173$route" || true)
+            if [ "$status" != "401" ]; then
+              echo "Production preview expected unauthenticated PDF route $route to return 401, received $status"
+              cat /tmp/aghbari-preview-pdf-auth.json
+              cat /tmp/aghbari-preview.log
+              exit 1
+            fi
+          done
+          curl --connect-timeout 2 --max-time 5 --fail --silent --show-error http://127.0.0.1:4173/manifest.webmanifest -o /tmp/aghbari-preview-manifest.json
+          grep -q "Aghbari Commerce" /tmp/aghbari-preview-manifest.json || {
+            echo "Production preview PWA manifest is missing the canonical product identity."
+            cat /tmp/aghbari-preview-manifest.json
+            exit 1
+          }
+
+      - name: Dev server smoke test on port 5173
+        env:
+          VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/aghbari-vite-dev.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:5173/ -o /tmp/aghbari-home.html; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/aghbari-vite-dev.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/aghbari-vite-dev.log
+            exit 1
+          fi
+          grep -q "الأغبري" /tmp/aghbari-home.html || {
+            echo "Arabic Aghbari product identity was not present in the dev-server response."
+            cat /tmp/aghbari-vite-dev.log
+            exit 1
+          }
+          # Probe the client and admin workspaces plus PWA assets. Route-unit tests alone
+          # don't prove the dev server can serve each URL.
+          for route in \
+            /cart /checkout /compare /wishlist /addresses /company/contacts /company/members /company/accept-invitation /product/ci-route-smoke-test \
+            /orders /invoices /statement /quotes /reorder /assistant /barcode /offline \
+            /admin /admin/orders /admin/products /admin/customers /admin/pricing \
+            /admin/operations /admin/finance /admin/reports /admin/settings \
+            /manifest.webmanifest /sw.js; do
+            status=$(curl --silent --output /dev/null --write-out "%{http_code}" "http://127.0.0.1:5173$route")
+            if [ "$status" != "200" ]; then
+              echo "Expected HTTP 200 from $route, received $status"
+              cat /tmp/aghbari-vite-dev.log
+              exit 1
+            fi
+          done
+          # A 200 alone can be a generic SPA fallback or not-found shell. Assert route-specific
+          # SSR document metadata so a missing file-based route cannot silently pass this probe.
+          for route_spec in \
+            "/invoices|الفواتير" \
+            "/statement|كشف الحساب"; do
+            route="${route_spec%%|*}"
+            expected_title="${route_spec#*|}"
+            curl --fail --silent --show-error "http://127.0.0.1:5173$route" -o /tmp/aghbari-route-contract.html
+            if ! grep -Fq "$expected_title" /tmp/aghbari-route-contract.html; then
+              echo "Expected route-specific Arabic title '$expected_title' for $route, but the document did not contain it."
+              cat /tmp/aghbari-route-contract.html
+              cat /tmp/aghbari-vite-dev.log
+              exit 1
+            fi
+          done
+          # PDF endpoints must exist but refuse unauthenticated access before looking up finance data.
+          for route in \
+            /api/statement-pdf \
+            /api/invoice-pdf/11111111-1111-4111-8111-111111111111; do
+            status=$(curl --silent --output /tmp/aghbari-pdf-auth.json --write-out "%{http_code}" "http://127.0.0.1:5173$route")
+            if [ "$status" != "401" ]; then
+              echo "Expected unauthenticated PDF route $route to return 401, received $status"
+              cat /tmp/aghbari-pdf-auth.json
+              cat /tmp/aghbari-vite-dev.log
+              exit 1
+            fi
+          done
+          curl --fail --silent --show-error http://127.0.0.1:5173/manifest.webmanifest -o /tmp/aghbari-manifest.json
+          grep -q "Aghbari Commerce" /tmp/aghbari-manifest.json || {
+            echo "PWA manifest is missing the canonical Aghbari Commerce identity."
+            cat /tmp/aghbari-manifest.json
+            exit 1
+          }

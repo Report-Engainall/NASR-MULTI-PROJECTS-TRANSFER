@@ -1,0 +1,7 @@
+نفّذ في المتجر الحالي فقط: https://github.com/Report-Engainall/Nasr1 على main. اقرأ بالكامل docs/bolt-source-reconciliation/BOLT_SINGLE_ENTRYPOINT_MASTER_HANDOFF_REPLACEMENT_2026-10-18.md ثم CURRENT_EXECUTION_STATE.md وEXECUTION_LOG.md وسجل المصادر والجرد.
+
+تحقق من HEAD الحي وCI المطابق له، ثم نفّذ next_task_id الوحيد. افحص كل ملف من READY_TO_REUSE/PROVENANCE_MANIFEST.csv، وكل الفروع وPRs واللقطات المتاحة. نزّل وفك وقارن فعليًا ZIPين من https://github.com/Report-Engainall/report-insight-engine/tree/main/incoming-archives/nasr1-bolt-recovery-2026-10-17: Nasr1_Bolt_Before_Failure.zip وNasr1_Bolt_Restored_Current.zip. احسب SHA-256 واختبر سلامة ZIP قبل الاستخراج الآمن. ادمج أو كيّف كل فائدة غير موجودة في Nasr1 ووصلها بالكود الفعلي واختبرها؛ metadata أو نسخ الملف لمجلد مرجعي ليس استخراجًا أو دمجًا. عند تعذر مصدر، سجّل رابط المحاولة ورسالة الخطأ الحقيقية وواصل عملًا مستقلًا فورًا.
+
+أكمل النسخة الشاملة فوق القائم: الأمان وصحة البيانات أولًا، ثم التجارة والمخزون والاستيراد وOnyx، ثم المحاسبة ولوحة الإدارة والتحليلات. لا توجد فواتير تاريخية سابقة مطلوب اختلاقها. لا بيانات demo أو أزرار شكلية أو خدمات مدفوعة. مركز المهام من أحداث فعلية مع منع التكرار، والطباعة بالكل/المبيعات/المحاسبة/المخزن/المشتريات/الإدارة بنفس الفلاتر والصلاحيات.
+
+لا force-push ولا محو عمل غير محفوظ. شغّل الاختبارات وأصلح الفشل. حدّث CURRENT_EXECUTION_STATE.md وEXECUTION_LOG.md وSOURCE_INTEGRATION_LEDGER.csv والجرد. سلّم commit وSHA وCI المطابق ونتائج حقيقية؛ افصل IMPLEMENTED/INTEGRATED/TESTED/BROWSER-PROVEN/PRODUCTION-PROVEN. أي اختبار لم يُشغّل يوسم NOT RUN. لا تدّعِ اكتمالًا دون دليل.

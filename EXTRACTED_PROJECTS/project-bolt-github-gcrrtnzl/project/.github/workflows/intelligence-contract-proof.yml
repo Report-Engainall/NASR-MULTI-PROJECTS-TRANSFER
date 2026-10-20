@@ -1,0 +1,59 @@
+name: Intelligence Contract Proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/intelligence-analytics-dataset.v1.schema.json'
+      - 'poc/intelligence-gateway/**'
+      - 'docs/INTELLIGENCE-INTEGRATION-CONTRACT-V1.md'
+      - '.github/workflows/intelligence-contract-proof.yml'
+  pull_request:
+    paths:
+      - 'contracts/intelligence-analytics-dataset.v1.schema.json'
+      - 'poc/intelligence-gateway/**'
+      - 'docs/INTELLIGENCE-INTEGRATION-CONTRACT-V1.md'
+      - '.github/workflows/intelligence-contract-proof.yml'
+  workflow_dispatch:
+    inputs:
+      exact_sha:
+        description: 'Exact Git commit SHA to verify'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aghbari-intelligence-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: ${{ inputs.exact_sha || github.sha }}
+    steps:
+      - name: Validate exact SHA input
+        shell: bash
+        run: echo "$TARGET_SHA" | grep -Eq '^[0-9a-f]{40}$'
+      - name: Checkout exact target SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.exact_sha || github.sha }}
+          fetch-depth: 1
+      - name: Verify exact target HEAD
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TARGET_SHA" || {
+            echo "EXACT HEAD MISMATCH: expected=$TARGET_SHA actual=$actual"
+            exit 1
+          }
+          echo "EXACT INTELLIGENCE CONTRACT HEAD: $actual"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run deterministic intelligence contract proof
+        run: node poc/intelligence-gateway/contract-proof.mjs

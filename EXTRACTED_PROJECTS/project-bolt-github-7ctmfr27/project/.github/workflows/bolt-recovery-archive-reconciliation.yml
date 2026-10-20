@@ -1,0 +1,62 @@
+name: Nasr1 Bolt recovery archive reconciliation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/bolt-recovery-archive-reconciliation.yml"
+      - "scripts/reconcile-bolt-recovery-archives.py"
+      - "scripts/persist-bolt-reconciliation-evidence.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile-recovery-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+      - name: Validate reconciliation and evidence-persistence helpers
+        run: |
+          python3 scripts/reconcile-bolt-recovery-archives.py --self-test
+          python3 scripts/persist-bolt-reconciliation-evidence.py --self-test
+      - name: Download, verify, extract, and compare the two ZIPs
+        id: reconciliation
+        continue-on-error: true
+        run: python3 scripts/reconcile-bolt-recovery-archives.py
+      - name: Persist actual inventories and execution state
+        if: always()
+        run: python3 scripts/persist-bolt-reconciliation-evidence.py
+      - name: Commit the evidence without force-push
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/bolt-source-reconciliation/ARCHIVE_MANIFEST.csv
+          git add docs/bolt-source-reconciliation/ARCHIVE_MEMBERS.csv
+          git add docs/bolt-source-reconciliation/ARCHIVE_PAIR_DIFF.csv
+          git add docs/bolt-source-reconciliation/READY_TO_REUSE_FILE_AUDIT.csv
+          git add docs/bolt-source-reconciliation/SOURCE_INTEGRATION_LEDGER.csv
+          git add docs/bolt-source-reconciliation/CURRENT_EXECUTION_STATE.md
+          git add docs/bolt-source-reconciliation/EXECUTION_LOG.md
+          if git diff --cached --quiet; then
+            echo "No evidence changes to commit."
+          else
+            git commit -m "docs: persist verified Bolt archive evidence"
+            git push origin HEAD:main
+          fi
+      - name: Upload metadata-only evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nasr1-bolt-recovery-reconciliation
+          path: artifacts/bolt-recovery-reconciliation/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Fail if source integrity or comparison failed
+        if: steps.reconciliation.outcome == 'failure'
+        run: exit 1

@@ -1,0 +1,36 @@
+name: Published commerce source-release snapshot audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/source-release-snapshot-audit.yml"
+      - "scripts/reconcile-source-release-snapshots.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source-release-snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout active Nasr1 target
+        uses: actions/checkout@v6
+      - name: Verify release snapshots without executing their contents
+        id: audit
+        continue-on-error: true
+        run: python3 scripts/reconcile-source-release-snapshots.py
+      - name: Upload release ZIP and member evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nasr1-source-release-snapshot-audit
+          path: artifacts/source-release-snapshot-audit/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Fail if any snapshot could not be verified
+        if: steps.audit.outcome == 'failure'
+        run: exit 1
