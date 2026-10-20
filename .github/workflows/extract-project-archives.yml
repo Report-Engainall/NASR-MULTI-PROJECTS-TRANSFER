@@ -1,0 +1,162 @@
+name: Extract all project ZIP archives
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '*.zip'
+      - '.github/workflows/extract-project-archives.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: extract-project-archives-main
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out transfer repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Extract every root ZIP into one parent folder
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from datetime import datetime, timezone
+          import hashlib
+          import re
+          import shutil
+          import zipfile
+
+          repo = Path.cwd()
+          output = repo / "EXTRACTED_PROJECTS"
+          archives = sorted((p for p in repo.glob("*.zip") if p.is_file()), key=lambda p: p.name.casefold())
+          if not archives:
+              raise SystemExit("No ZIP archives were found in the repository root.")
+
+          if output.exists():
+              shutil.rmtree(output)
+          output.mkdir(parents=True)
+
+          readme = """# Extracted Projects
+
+          This directory contains the contents of every ZIP archive found in the root of NASR-MULTI-PROJECTS-TRANSFER.
+
+          Each archive is extracted into its own subfolder to preserve its original files and prevent same-name files from overwriting each other. The source ZIP archives remain untouched in the repository root.
+
+          ## Structure
+
+          `EXTRACTED_PROJECTS/<archive-name-without-.zip>/`
+
+          See `_EXTRACTION_REPORT.md` for archive hashes, file counts, duplicate detection, and extraction status.
+          """
+          (output / "README.md").write_text(readme, encoding="utf-8")
+
+          report = [
+              "# Project Archive Extraction Report",
+              "",
+              f"- Source repository: https://github.com/Report-Engainall/NASR-MULTI-PROJECTS-TRANSFER",
+              f"- Generated (UTC): {datetime.now(timezone.utc).isoformat()}",
+              f"- ZIP archives found at repository root: {len(archives)}",
+              "- Output parent: `EXTRACTED_PROJECTS/`",
+              "- Each archive is preserved in a separate subfolder; the original ZIP files are not modified or deleted.",
+              "",
+              "## Results",
+              "",
+              "| Archive | SHA-256 | Extracted files | Status |",
+              "|---|---|---:|---|",
+          ]
+          hashes = {}
+          failures = []
+
+          for archive in archives:
+              digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+              hashes.setdefault(digest, []).append(archive.name)
+              folder_name = archive.name[:-4] if archive.name.lower().endswith(".zip") else archive.stem
+              destination = output / folder_name
+              destination.mkdir(parents=True, exist_ok=True)
+              file_count = 0
+              status = "PASS"
+              error_message = ""
+
+              try:
+                  with zipfile.ZipFile(archive, "r") as zf:
+                      members = zf.infolist()
+                      for item in members:
+                          normalized = item.filename.replace("\\\\", "/")
+                          member_path = PurePosixPath(normalized)
+                          if normalized.startswith("/") or re.match(r"^[A-Za-z]:", normalized) or ".." in member_path.parts:
+                              raise ValueError(f"Unsafe archive path: {item.filename}")
+                          target = (destination / Path(*member_path.parts)).resolve()
+                          if target != destination.resolve() and destination.resolve() not in target.parents:
+                              raise ValueError(f"Archive path escapes output folder: {item.filename}")
+                          if item.file_size > 95 * 1024 * 1024:
+                              raise ValueError(f"File exceeds safe GitHub repository limit (95 MiB): {item.filename}")
+                      corrupt = zf.testzip()
+                      if corrupt:
+                          raise ValueError(f"Corrupt ZIP member: {corrupt}")
+                      zf.extractall(destination)
+                  file_count = sum(1 for item in destination.rglob("*") if item.is_file())
+              except Exception as exc:
+                  status = "FAILED"
+                  error_message = str(exc).replace("|", "\\|").replace("\n", " ")
+                  failures.append((archive.name, error_message))
+                  shutil.rmtree(destination, ignore_errors=True)
+
+              report.append(f"| `{archive.name}` | `{digest}` | {file_count} | {status} |")
+              if error_message:
+                  report.append("")
+                  report.append(f"**Extraction error for {archive.name}:** `{error_message}`")
+
+          duplicates = [names for names in hashes.values() if len(names) > 1]
+          report.extend(["", "## Duplicate archives", ""])
+          if duplicates:
+              report.append("The following archives have identical SHA-256 hashes. Each was still processed independently when extraction succeeded:")
+              for names in duplicates:
+                  report.append("- " + ", ".join(f"`{name}`" for name in names))
+          else:
+              report.append("No byte-identical ZIP archives were detected.")
+
+          report.extend(["", "## Overall status", ""])
+          if failures:
+              report.append(f"**PARTIAL — {len(failures)} archive(s) failed extraction.** See errors above. Original ZIP files remain available at the repository root.")
+          else:
+              report.append("**PASS — every discovered ZIP archive was extracted successfully.**")
+          (output / "_EXTRACTION_REPORT.md").write_text("\n".join(report) + "\n", encoding="utf-8")
+
+          print(f"Archives discovered: {len(archives)}")
+          print(f"Archives failed: {len(failures)}")
+          print(f"Extraction output: {output}")
+          PY
+
+      - name: Commit extracted projects to the repository
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add EXTRACTED_PROJECTS
+          if git diff --cached --quiet; then
+            echo "No extracted-file changes to commit."
+          else
+            git commit -m "Extract project archives into EXTRACTED_PROJECTS"
+            git push origin HEAD:main
+          fi
+
+      - name: Publish extraction report in the workflow summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f EXTRACTED_PROJECTS/_EXTRACTION_REPORT.md ]; then
+            cat EXTRACTED_PROJECTS/_EXTRACTION_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Extraction report was not generated. Check the previous step logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
