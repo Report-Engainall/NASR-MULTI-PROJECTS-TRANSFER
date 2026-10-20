@@ -92,7 +92,7 @@ jobs:
                   with zipfile.ZipFile(archive, "r") as zf:
                       members = zf.infolist()
                       for item in members:
-                          normalized = item.filename.replace("\\\\", "/")
+                          normalized = item.filename.replace("\\", "/")
                           member_path = PurePosixPath(normalized)
                           if normalized.startswith("/") or re.match(r"^[A-Za-z]:", normalized) or ".." in member_path.parts:
                               raise ValueError(f"Unsafe archive path: {item.filename}")
